@@ -20,3 +20,11 @@ test('background lock clears DOM and prevents an in-flight decrypt from restorin
  h.document.hidden=true;h.listeners.visibilitychange();release({id:'m',body:'secret'});await refresh;
  assert.equal(h.get('application').hidden,true);assert.equal(h.get('auth').hidden,false);assert.equal(h.get('messages').children.length,0);assert.equal(vm.runInContext('rows.length',h.context),0);
 });
+test('locking while QR frames are generated cannot restore pairing QR',async()=>{
+ const h=harness();await new Promise(setImmediate);let resolve;
+ h.context.BridgeQR.frames=()=>new Promise(r=>resolve=r);
+ vm.runInContext('privateKey={}',h.context);h.get('export').value='{}';
+ const pending=vm.runInContext('showRecipientQR({expiresAt:Date.now()+60000})',h.context);
+ vm.runInContext('lock()',h.context);resolve(['frame']);await pending;
+ assert.equal(h.get('recipient-qr').hidden,true);assert.equal(h.get('recipient-qr').width,0);assert.equal(h.get('qr-controls').hidden,true);
+});

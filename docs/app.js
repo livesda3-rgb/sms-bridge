@@ -101,16 +101,17 @@ window.addEventListener('storage',e=>{if(e.key==='sms-bridge-reset')location.rel
 async function authInit(){
  try{vaultRecord=await BridgeDB.get('vault');setupMode=!vaultRecord;$('auth-title').textContent=setupMode?'Создайте пароль':'Вход';$('auth-help').textContent=setupMode?'Этот пароль шифрует историю SMS. Минимум 8 символов. Запомните его: восстановления нет.':'Введите пароль для открытия истории.';$('confirm-box').hidden=!setupMode;$('password-confirm').required=setupMode;$('password').autocomplete=setupMode?'new-password':'current-password';$('unlock').textContent=setupMode?'Создать пароль':'Открыть';await init();}catch(e){$('auth-error').textContent=e.message;}
 }
-let qrExpiryTimer=null;
-function clearRecipientQR(){clearInterval(qrExpiryTimer);qrExpiryTimer=null;$('recipient-qr').hidden=true;$('recipient-qr').width=0;$('qr-expiry').textContent='';}
-function showRecipientQR(invitation){
- clearRecipientQR();
- const expiry=invitation?.expiresAt;
- const update=()=>{const seconds=Math.max(0,Math.ceil((expiry-Date.now())/1000));$('qr-expiry').textContent=seconds>0?'Подтвердите на Android в течение '+Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'):'Время привязки истекло. Если уже подтвердили на Android — всё готово. Иначе создайте и сканируйте новый QR.';if(!seconds){$('recipient-qr').hidden=true;$('recipient-qr').width=0;clearInterval(qrExpiryTimer);}};
- if(!Number.isSafeInteger(expiry)||expiry<=Date.now()){update();return;}
- try{BridgeQR.draw($('recipient-qr'),JSON.parse($('export').value));$('recipient-qr').hidden=false;}catch{say('Данные слишком велики для QR. Используйте ручную передачу.');}
- update();qrExpiryTimer=setInterval(update,1000);
+let qrExpiryTimer=null,qrFrameTimer=null,qrGeneration=0,qrFrames=[],qrFrameIndex=0,qrPaused=false;
+function clearRecipientQR(){qrGeneration++;clearInterval(qrExpiryTimer);clearInterval(qrFrameTimer);qrExpiryTimer=qrFrameTimer=null;qrFrames=[];$('recipient-qr').hidden=true;$('recipient-qr').width=0;$('qr-expiry').textContent='';$('qr-frame').textContent='';$('qr-controls').hidden=true;}
+function paintQRFrame(){if(!qrFrames.length)return;BridgeQR.drawText($('recipient-qr'),qrFrames[qrFrameIndex]);$('recipient-qr').hidden=false;$('qr-frame').textContent='Часть '+(qrFrameIndex+1)+' из '+qrFrames.length+' · '+(qrPaused?'пауза':'смена автоматически');}
+async function showRecipientQR(invitation){
+ clearRecipientQR();const generation=qrGeneration,expiry=invitation?.expiresAt;
+ const update=()=>{const seconds=Number.isSafeInteger(expiry)?Math.max(0,Math.ceil((expiry-Date.now())/1000)):0;$('qr-expiry').textContent=seconds>0?'Подтвердите на Android в течение '+Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'):'Время привязки истекло. Если уже подтвердили на Android — всё готово. Иначе создайте и сканируйте новый QR.';if(!seconds){qrGeneration++;qrFrames=[];$('recipient-qr').hidden=true;$('recipient-qr').width=0;$('qr-controls').hidden=true;$('qr-frame').textContent='';clearInterval(qrExpiryTimer);clearInterval(qrFrameTimer);}return seconds>0;};
+ if(!update())return;
+ try{const frames=await BridgeQR.frames(JSON.parse($('export').value));if(generation!==qrGeneration||!privateKey)return;if(!update())return;qrFrames=frames;qrFrameIndex=0;qrPaused=false;$('qr-pause').textContent='Пауза';$('qr-controls').hidden=false;paintQRFrame();qrFrameTimer=setInterval(()=>{if(!qrPaused&&qrFrames.length){qrFrameIndex=(qrFrameIndex+1)%qrFrames.length;paintQRFrame();}},1600);qrExpiryTimer=setInterval(update,1000);}catch{if(generation===qrGeneration)say('Не удалось создать QR. Используйте ручную передачу.');}
 }
+$('qr-pause').onclick=()=>{qrPaused=!qrPaused;$('qr-pause').textContent=qrPaused?'Продолжить':'Пауза';paintQRFrame();};
+$('qr-next').onclick=()=>{if(qrFrames.length){qrFrameIndex=(qrFrameIndex+1)%qrFrames.length;paintQRFrame();}};
 function stopScanner(){BridgeQR.stop();$('scanner').hidden=true;$('scan-source').disabled=false;}
 $('stop-scan').onclick=stopScanner;
 $('scan-source').onclick=async()=>{

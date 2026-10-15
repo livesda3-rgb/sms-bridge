@@ -2,9 +2,11 @@
 (function(root){
  'use strict';
  function asciiJSON(value){return JSON.stringify(value).replace(/[\u007f-\uffff]/g,c=>'\\u'+c.charCodeAt(0).toString(16).padStart(4,'0'));}
- function matrix(value){const q=qrcode(0,'M');q.addData(asciiJSON(value),'Byte');q.make();return q;}
- function draw(canvas,value){
-  const q=matrix(value),n=q.getModuleCount(),scale=Math.max(3,Math.floor(900/(n+8)));
+ function matrixText(text){const q=qrcode(0,'M');q.addData(text,'Byte');q.make();return q;}
+ function matrix(value){return matrixText(asciiJSON(value));}
+ function draw(canvas,value){return drawText(canvas,asciiJSON(value));}
+ function drawText(canvas,text){
+  const q=matrixText(text),n=q.getModuleCount(),scale=Math.max(3,Math.floor(900/(n+8)));
   canvas.width=canvas.height=(n+8)*scale;const c=canvas.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,canvas.width,canvas.height);c.fillStyle='#000';
   for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(q.isDark(y,x))c.fillRect((x+4)*scale,(y+4)*scale,scale,scale);
  }
@@ -24,6 +26,13 @@
    }tick();
   }catch(e){if(current===generation){stop();onError(e);}}
  }
- root.BridgeQR={asciiJSON,matrix,draw,scan,stop};
+ async function frames(value){
+  const text=asciiJSON(value);if(text.length>16000)throw Error('Данные подключения слишком велики.');
+  const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text))),b=>b.toString(16).padStart(2,'0')).join('');
+  const count=Math.ceil(text.length/240),out=[];
+  for(let i=0;i<count;i++)out.push('SBQR1|'+hash+'|'+i+'|'+count+'|'+text.slice(i*240,(i+1)*240));
+  return out;
+ }
+ root.BridgeQR={asciiJSON,matrix,matrixText,draw,drawText,frames,scan,stop};
  if(typeof module!=='undefined')module.exports=root.BridgeQR;
 })(typeof self!=='undefined'?self:globalThis);

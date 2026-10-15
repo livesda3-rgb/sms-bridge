@@ -1,6 +1,6 @@
 'use strict';
 importScripts('./core.js','./db.js','./vault.js');
-const CACHE='sms-bridge-shell-v4';
+const CACHE='sms-bridge-shell-v5';
 const ASSETS=['./','./index.html','./style.css','./app.js','./qr.js','./vendor/qrcode.js','./vendor/jsqr.js','./core.js','./db.js','./vault.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil((async()=>{for(const k of await caches.keys())if(k.startsWith('sms-bridge-shell-')&&k!==CACHE)await caches.delete(k);await self.clients.claim();})()));

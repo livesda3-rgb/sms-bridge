@@ -26,7 +26,7 @@ public class MainActivity extends Activity {
         ScrollView scroll=new ScrollView(this); LinearLayout root=new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(20),dp(28),dp(20),dp(20));scroll.addView(root);setContentView(scroll);
         root.addView(text("SMS Bridge",28));
-        root.addView(text("0.3 · SMS → Web Push",16));
+        root.addView(text("0.4 · SMS → Web Push",16));
         root.addView(text("Принимает SMS и отправляет их выбранному получателю через интернет. Для каждой SIM включите пересылку отдельно. MMS и отправка исходящих SMS не поддерживаются. После перезагрузки нужно один раз разблокировать телефон.",14));
         status=text("",14);root.addView(status);
         button(root,"1. Назначить основным SMS-приложением",()->{
