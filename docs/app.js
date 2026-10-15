@@ -29,7 +29,11 @@ async function state(){
 async function action(fn){if(busy)return;busy=true;$('connect').disabled=true;try{await fn();}catch(e){say(e.message||'Не удалось выполнить действие.');}finally{busy=false;$('connect').disabled=!registration;}}
 $('connect').onclick=()=>action(async()=>{
  if(!registration||!('PushManager'in window))throw Error('Push недоступен. На iPhone установите сайт на экран «Домой» и откройте оттуда.');
- const cfg=BridgeCore.setup(JSON.parse($('config').value));
+ const input=$('config').value.trim();
+ if(!input){$('config').focus();throw Error('Сначала вставьте данные подключения из домашнего приложения. APK 0.1 пока их не выдаёт. Для проверки нажмите «Проверить уведомление».');}
+ let parsed;
+ try{parsed=JSON.parse(input);}catch{throw Error('Данные подключения скопированы не полностью или имеют неверный формат. Скопируйте их заново из домашнего приложения.');}
+ const cfg=BridgeCore.setup(parsed);
  // Request permission directly in the user gesture, before storage/network awaits.
  const permission=await Notification.requestPermission();
  if(permission!=='granted')throw Error('Разрешите уведомления в настройках браузера или приложения.');
