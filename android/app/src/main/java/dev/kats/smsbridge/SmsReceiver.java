@@ -35,6 +35,11 @@ public class SmsReceiver extends BroadcastReceiver {
                     detail += saved!=null ? "; сохранено в SMS-базе" : "; ОШИБКА сохранения в SMS-базе";
                 } catch(Exception e) { detail+="; SMS-база: "+e.getClass().getSimpleName(); }
                 db.add(sender,body.toString(),sub,detail);
+                String simKey=SimIdentity.key(context,sub);
+                if(simKey!=null)try(BridgeStore bridge=new BridgeStore(context)){
+                    try { bridge.enqueue(simKey,sender,body.toString(),System.currentTimeMillis()); }
+                    catch(Exception e){bridge.status("Ошибка постановки SMS в очередь: "+e.getClass().getSimpleName());}
+                }
                 Store.notifyReceived(context,"Получено SMS");
             } finally { pending.finish(); }
         },"sms-persist").start();
