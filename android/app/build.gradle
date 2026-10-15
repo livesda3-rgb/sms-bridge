@@ -6,8 +6,8 @@ android {
         applicationId 'dev.kats.smsbridge'
         minSdk 29
         targetSdk 35
-        versionCode 3
-        versionName '0.3-qr'
+        versionCode 4
+        versionName '0.3.1-qr'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -15,4 +15,10 @@ android {
     }
 }
 
-dependencies { implementation 'com.journeyapps:zxing-android-embedded:4.3.0' }
+dependencies {
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+    // ZXing 4.3.0's published POM omits its AndroidX implementation dependencies.
+    // These must be packaged at runtime, not only available to the compiler.
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.fragment:fragment:1.6.2'
+}
