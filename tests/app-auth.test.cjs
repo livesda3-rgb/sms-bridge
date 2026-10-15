@@ -13,11 +13,11 @@ test('locked client cannot subscribe, wrong password keeps history hidden',async
  const h=harness();await new Promise(setImmediate);await h.get('connect').onclick();assert.equal(h.permissionCalls(),0);
  h.get('password').value='wrong-password';await h.get('auth-form').onsubmit({preventDefault(){}});assert.equal(h.get('application').hidden,true);assert.match(h.get('auth-error').textContent,/Неверный пароль/);
 });
-test('background lock clears DOM and prevents an in-flight decrypt from restoring plaintext',async()=>{
+test('explicit reset lock clears DOM and prevents an in-flight decrypt from restoring plaintext',async()=>{
  const h=harness();await new Promise(setImmediate);let release;
  h.context.BridgeDB.list=async()=>[{id:'encrypted'}];h.context.BridgeVault.open=()=>new Promise(r=>release=r);
  vm.runInContext("privateKey={};rows=[{body:'secret'}];",h.context);h.get('messages').children=['secret'];const refresh=vm.runInContext('refresh()',h.context);await new Promise(setImmediate);
- h.document.hidden=true;h.listeners.visibilitychange();release({id:'m',body:'secret'});await refresh;
+ vm.runInContext('lock()',h.context);release({id:'m',body:'secret'});await refresh;
  assert.equal(h.get('application').hidden,true);assert.equal(h.get('auth').hidden,false);assert.equal(h.get('messages').children.length,0);assert.equal(vm.runInContext('rows.length',h.context),0);
 });
 test('locking while QR frames are generated cannot restore pairing QR',async()=>{
@@ -27,4 +27,19 @@ test('locking while QR frames are generated cannot restore pairing QR',async()=>
  const pending=vm.runInContext('showRecipientQR({expiresAt:Date.now()+60000})',h.context);
  vm.runInContext('lock()',h.context);resolve(['frame']);await pending;
  assert.equal(h.get('recipient-qr').hidden,true);assert.equal(h.get('recipient-qr').width,0);assert.equal(h.get('qr-controls').hidden,true);
+});
+test('backgrounding the client no longer locks the session',async()=>{
+ const h=harness();await new Promise(setImmediate);vm.runInContext('privateKey={}',h.context);h.get('application').hidden=false;h.get('auth').hidden=true;
+ h.document.hidden=true;h.listeners.visibilitychange();assert.equal(h.get('application').hidden,false);assert.equal(h.get('auth').hidden,true);assert.equal(vm.runInContext('!!privateKey',h.context),true);
+});
+test('remembered device key opens existing history without password',async()=>{
+ const h=harness();await new Promise(setImmediate);let decryptCalls=0;
+ h.context.BridgeDB.get=async k=>k==='vault'?{id:'v'}:k==='deviceAccess'?{vaultId:'v',key:{}}:null;
+ h.context.BridgeDB.list=async()=>[{encrypted:true,id:'m'}];h.context.BridgeVault.open=async()=>{decryptCalls++;return {id:'m',simId:'s',simName:'SIM',sender:'Test',body:'hello',receivedAt:Date.now()};};
+ await vm.runInContext('authInit()',h.context);assert.ok(decryptCalls);assert.equal(h.get('auth').hidden,true);assert.equal(h.get('application').hidden,false);
+});
+test('new installation creates device access and opens without asking for password',async()=>{
+ const h=harness();await new Promise(setImmediate);const settings=new Map();
+ h.context.BridgeDB.get=async k=>settings.get(k);h.context.BridgeDB.createVault=async(record,key)=>{settings.set('vault',record);settings.set('deviceAccess',{vaultId:record.id,key});return true;};h.context.BridgeVault.create=async()=>({record:{id:'new'},privateKey:{}});
+ await vm.runInContext('authInit()',h.context);assert.equal(h.get('auth').hidden,true);assert.equal(h.get('application').hidden,false);assert.equal(settings.get('deviceAccess').vaultId,'new');
 });

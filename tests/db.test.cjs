@@ -13,3 +13,10 @@ test('retention counts messages, retaining all parts of the newest 200 groups',a
  for(let i=0;i<201;i++)for(let part=0;part<2;part++)await d.save({...record(i+'-'+part,'g'+i),storedAt:i*2+part});
  const rows=await d.list();assert.equal(rows.length,400);assert.equal(rows.filter(x=>x.group==='g0').length,0);assert.equal(rows.filter(x=>x.group==='g200').length,2);
 });
+test('device key persists through IndexedDB and decrypts existing history; reset blocks stale migration',async()=>{
+ const d=database(),vault=require('../docs/vault.js');const {record:recordData,privateKey}=await vault.create('original-password');
+ await d.createVault(recordData,privateKey);const stored=await d.get('deviceAccess');assert.equal(stored.vaultId,recordData.id);assert.equal(stored.key.extractable,false);
+ const msg={id:'message',sourceId:'home',body:'history preserved'};
+ assert.equal((await vault.open(stored.key,await vault.seal(recordData,msg))).body,msg.body);
+ await d.reset();assert.equal(await d.rememberKey(recordData.id,privateKey),false);assert.equal(await d.get('deviceAccess'),undefined);
+});

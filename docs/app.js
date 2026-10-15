@@ -77,7 +77,7 @@ function lock(){
  privateKey=null;rows=[];demo=false;$('messages').replaceChildren();$('count').textContent='0';$('search').value='';$('config').value='';$('export').value='';$('feedback').textContent='';$('application').hidden=true;$('auth').hidden=false;$('password').value='';$('password-confirm').value='';$('auth-error').textContent='';
 }
 $('lock').onclick=lock;
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&privateKey)lock();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){stopScanner();clearRecipientQR();}else if(privateKey){refresh().then(state).catch(e=>say(e.message));}});
 $('auth-form').onsubmit=async e=>{
  e.preventDefault();if(Date.now()<blockedUntil){$('auth-error').textContent='Подождите несколько секунд перед повтором.';return;}
  $('unlock').disabled=true;const password=$('password').value;
@@ -85,21 +85,37 @@ $('auth-form').onsubmit=async e=>{
   let key;
   if(setupMode){if(password!==$('password-confirm').value)throw Error('Пароли не совпадают.');const created=await BridgeVault.create(password);if(!await BridgeDB.createVault(created.record)){location.reload();return;}vaultRecord=created.record;key=created.privateKey;setupMode=false;
   }else key=await BridgeVault.unlock(vaultRecord,password);
-  // Resume an interrupted upgrade without overwriting its vault key.
-  for(const m of await BridgeDB.list())if(!m.encrypted)await BridgeDB.replace(await BridgeVault.seal(vaultRecord,m));
-  if(document.hidden)throw Error('Откройте приложение и повторите вход.');
-  privateKey=key;setupMode=false;failures=0;$('auth-title').textContent='Вход';$('auth-help').textContent='Введите пароль для открытия истории.';$('confirm-box').hidden=true;$('password-confirm').required=false;$('unlock').textContent='Открыть';$('password').autocomplete='current-password';$('password').value='';$('password-confirm').value='';$('auth').hidden=true;$('application').hidden=false;
-  const cfg=await BridgeDB.get('source');if(cfg)$('config').value=JSON.stringify({...cfg,...await BridgeDB.get('invitation')},null,2);await refresh();await state();
+  if(!await BridgeDB.rememberKey(vaultRecord.id,key))throw Error('Хранилище изменилось. Перезапустите клиент.');
+  await openClient(key);
  }catch(e){if(!setupMode){failures++;blockedUntil=Date.now()+Math.min(30000,1000*2**Math.min(failures-1,5));}$('auth-error').textContent=e.message;}
  finally{$('unlock').disabled=false;}
 };
+async function openClient(key){
+  // Resume an interrupted upgrade without overwriting its vault key.
+  for(const m of await BridgeDB.list())if(!m.encrypted)await BridgeDB.replace(await BridgeVault.seal(vaultRecord,m));
+  privateKey=key;setupMode=false;failures=0;$('auth-title').textContent='Вход';$('auth-help').textContent='Автоматический вход включён.';$('confirm-box').hidden=true;$('password-confirm').required=false;$('unlock').textContent='Открыть';$('password').autocomplete='current-password';$('password').value='';$('password-confirm').value='';$('auth').hidden=true;$('application').hidden=false;
+  const cfg=await BridgeDB.get('source');if(cfg)$('config').value=JSON.stringify({...cfg,...await BridgeDB.get('invitation')},null,2);await refresh();await state();
+}
 $('reset-vault').onclick=async()=>{
  if(!confirm('Удалить всю историю, пароль и подключение на этом устройстве? Восстановить историю будет нельзя.'))return;
  try{const r=registration||await navigator.serviceWorker.getRegistration();const sub=await r?.pushManager?.getSubscription();if(sub&&!await sub.unsubscribe())throw Error('Не удалось отключить подписку. Повторите сброс при наличии интернета.');lock();await BridgeDB.reset();localStorage.setItem('sms-bridge-reset',String(Date.now()));location.reload();}catch(e){$('auth-error').textContent=e.message;}
 };
 window.addEventListener('storage',e=>{if(e.key==='sms-bridge-reset')location.reload();});
 async function authInit(){
- try{vaultRecord=await BridgeDB.get('vault');setupMode=!vaultRecord;$('auth-title').textContent=setupMode?'Создайте пароль':'Вход';$('auth-help').textContent=setupMode?'Этот пароль шифрует историю SMS. Минимум 8 символов. Запомните его: восстановления нет.':'Введите пароль для открытия истории.';$('confirm-box').hidden=!setupMode;$('password-confirm').required=setupMode;$('password').autocomplete=setupMode?'new-password':'current-password';$('unlock').textContent=setupMode?'Создать пароль':'Открыть';await init();}catch(e){$('auth-error').textContent=e.message;}
+ try{
+  vaultRecord=await BridgeDB.get('vault');
+  if(!vaultRecord){
+   const created=await BridgeVault.create(crypto.randomUUID()+crypto.randomUUID());
+   if(!await BridgeDB.createVault(created.record,created.privateKey)){location.reload();return;}
+   vaultRecord=created.record;
+  }
+  setupMode=false;
+  const access=await BridgeDB.get('deviceAccess');
+  $('confirm-box').hidden=true;$('password-confirm').required=false;$('password').autocomplete='current-password';
+  $('auth-title').textContent='Отключение пароля';$('auth-help').textContent='Введите прежний пароль один раз, чтобы сохранить историю. После этого клиент будет открываться автоматически.';$('unlock').textContent='Отключить пароль и открыть';
+  if(access?.vaultId===vaultRecord.id&&access.key)await openClient(access.key);
+  await init();
+ }catch(e){$('auth-error').textContent=e.message;}
 }
 let qrExpiryTimer=null,qrFrameTimer=null,qrGeneration=0,qrFrames=[],qrFrameIndex=0,qrPaused=false;
 function clearRecipientQR(){qrGeneration++;clearInterval(qrExpiryTimer);clearInterval(qrFrameTimer);qrExpiryTimer=qrFrameTimer=null;qrFrames=[];$('recipient-qr').hidden=true;$('recipient-qr').width=0;$('qr-expiry').textContent='';$('qr-frame').textContent='';$('qr-controls').hidden=true;}

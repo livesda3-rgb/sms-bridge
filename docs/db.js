@@ -26,6 +26,7 @@
       tx.oncomplete=()=>{db.close();resolve(added);};tx.onerror=()=>{db.close();reject(tx.error);};tx.onabort=()=>{db.close();reject(tx.error||Error('Хранилище недоступно'));};
     });
   };
-  const createVault=record=>run('settings','readwrite',(s,done)=>{s.get('vault').onsuccess=e=>{if(e.target.result){done(false);return;}s.put(record,'vault');done(true);};});
-  root.BridgeDB={get,set,list,save,createVault,replace:v=>run('messages','readwrite',s=>s.put(v)),reset:async()=>{const db=await open();return new Promise((resolve,reject)=>{const tx=db.transaction(['messages','settings'],'readwrite');tx.objectStore('messages').clear();tx.objectStore('settings').clear();tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>{db.close();reject(tx.error);};});},clear:()=>run('messages','readwrite',s=>s.clear())};
+  const createVault=(record,key)=>run('settings','readwrite',(s,done)=>{s.get('vault').onsuccess=e=>{if(e.target.result){done(false);return;}s.put(record,'vault');if(key)s.put({vaultId:record.id,key},'deviceAccess');done(true);};});
+  const rememberKey=(vaultId,key)=>run('settings','readwrite',(s,done)=>{s.get('vault').onsuccess=e=>{if(e.target.result?.id!==vaultId){done(false);return;}s.put({vaultId,key},'deviceAccess');done(true);};});
+  root.BridgeDB={get,set,list,save,createVault,rememberKey,replace:v=>run('messages','readwrite',s=>s.put(v)),reset:async()=>{const db=await open();return new Promise((resolve,reject)=>{const tx=db.transaction(['messages','settings'],'readwrite');tx.objectStore('messages').clear();tx.objectStore('settings').clear();tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>{db.close();reject(tx.error);};});},clear:()=>run('messages','readwrite',s=>s.clear())};
 })(self);
