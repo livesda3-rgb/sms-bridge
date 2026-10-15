@@ -27,16 +27,16 @@ async function state(){
  const ok=!!(cfg&&sub&&sameKey(sub,cfg.publicKey)&&Notification.permission==='granted');
  $('status').textContent=ok?'Подписка создана · доступ подтверждается в APK':cfg?'Нужно повторное подключение':'Домашний телефон не подключён';
  $('dot').classList.toggle('on',ok);$('paired').hidden=!ok;
- if(ok){const invitation=await BridgeDB.get('invitation');const recipientId=await BridgeDB.get('recipientId');$('export').value=JSON.stringify({version:1,type:'sms-bridge-recipient',sourceId:cfg.sourceId,recipientId,publicKey:cfg.publicKey,pairingToken:invitation?.pairingToken,name:$('name').value.trim()||'Мой телефон',subscription:sub.toJSON()},null,2);}
+ if(ok&&privateKey){const sessionKey=privateKey;const invitation=await BridgeDB.get('invitation');const recipientId=await BridgeDB.get('recipientId');if(privateKey!==sessionKey)return;$('export').value=JSON.stringify({version:1,type:'sms-bridge-recipient',sourceId:cfg.sourceId,recipientId,publicKey:cfg.publicKey,pairingToken:invitation?.pairingToken,name:$('name').value.trim()||'Мой телефон',subscription:sub.toJSON()},null,2);showRecipientQR(invitation);}
  if(await BridgeDB.get('needsRepair'))say('Подписка изменилась. Повторно подключитесь и передайте новые данные в APK.');
 }
 async function action(fn){if(busy||!privateKey)return;busy=true;$('connect').disabled=true;try{await fn();}catch(e){say(e.message||'Не удалось выполнить действие.');}finally{busy=false;$('connect').disabled=!registration;}}
 $('connect').onclick=()=>action(async()=>{
  if(!registration||!('PushManager'in window))throw Error('Push недоступен. На iPhone установите сайт на экран «Домой» и откройте оттуда.');
- const input=$('config').value.trim();if(!input)throw Error('Вставьте данные подключения из APK 0.2.');
+ const input=$('config').value.trim();if(!input)throw Error('Сканируйте QR домашнего Android или вставьте данные вручную.');
  let parsed;try{parsed=JSON.parse(input);}catch{throw Error('Неверный JSON. Скопируйте данные подключения полностью.');}
  const cfg=BridgeCore.setup(parsed);
- if(!/^[A-Za-z0-9_-]{43}$/.test(parsed.pairingToken||'')||!Number.isSafeInteger(parsed.expiresAt)||parsed.expiresAt<Date.now())throw Error('Нужен свежий одноразовый код из APK 0.2 (15 минут).');
+ if(!/^[A-Za-z0-9_-]{43}$/.test(parsed.pairingToken||'')||!Number.isSafeInteger(parsed.expiresAt)||parsed.expiresAt<Date.now())throw Error('Срок подключения истёк или код повреждён. Создайте новый QR на Android (15 минут).');
  // Request permission directly in the user gesture, before storage/network awaits.
  const permission=await Notification.requestPermission();
  if(permission!=='granted')throw Error('Разрешите уведомления в настройках браузера или приложения.');
@@ -48,13 +48,13 @@ $('connect').onclick=()=>action(async()=>{
  sub=sub||await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:keyBytes(cfg.publicKey)});
  if(!await BridgeDB.get('recipientId'))await BridgeDB.set('recipientId',crypto.randomUUID());
  await BridgeDB.set('name',$('name').value.trim()||'Мой телефон');await BridgeDB.set('needsRepair',false);
- await state();say('Подписка готова. Скопируйте данные получателя в домашний APK.');
+ await state();say('Подписка готова. Покажите ответный QR камере домашнего Android.');
 });
 $('copy').onclick=()=>copy($('export').value);
 $('name').onchange=()=>action(async()=>{await BridgeDB.set('name',$('name').value.trim());await state();});
 $('preview').onchange=()=>action(()=>BridgeDB.set('preview',$('preview').checked));
 $('localtest').onclick=()=>action(async()=>{if(!registration||!('Notification'in window))throw Error('Уведомления недоступны в этом браузере.');if(await Notification.requestPermission()!=='granted')throw Error('Уведомления не разрешены.');await registration.showNotification('SMS Bridge · проверка',{body:'Локальное уведомление работает. Интернет-доставка ещё не проверена.',icon:'./icon-192.png',tag:'local-test'});say('Локальное уведомление отправлено.');});
-$('disconnect').onclick=()=>action(async()=>{if(!confirm('Отключить уведомления от домашнего телефона? История останется.'))return;const sub=await registration?.pushManager?.getSubscription();if(sub&&!await sub.unsubscribe())throw Error('Не удалось отключить подписку. Попробуйте снова.');await BridgeDB.set('source',null);await BridgeDB.set('invitation',null);await BridgeDB.set('recipientId',null);await BridgeDB.set('needsRepair',false);$('config').value='';$('export').value='';await state();say('Подписка отключена. Удалите этого получателя и в домашнем APK.');});
+$('disconnect').onclick=()=>action(async()=>{if(!confirm('Отключить уведомления от домашнего телефона? История останется.'))return;const sub=await registration?.pushManager?.getSubscription();if(sub&&!await sub.unsubscribe())throw Error('Не удалось отключить подписку. Попробуйте снова.');await BridgeDB.set('source',null);await BridgeDB.set('invitation',null);await BridgeDB.set('recipientId',null);await BridgeDB.set('needsRepair',false);$('config').value='';$('export').value='';clearRecipientQR();await state();say('Подписка отключена. Удалите этого получателя и в домашнем APK.');});
 $('clear').onclick=()=>action(async()=>{if(demo){say('Это демонстрация. Нажмите «Выйти».');return;}if(confirm('Удалить все сохранённые здесь SMS?')){await BridgeDB.clear();await refresh();say('История очищена.');}});
 $('demo').onclick=()=>{if(!privateKey)return;demo=true;rows=[{id:'demo1',simId:'personal',simName:'Личная SIM',sender:'DEMO BANK',body:'Пример сообщения: код подтверждения 123456. Это вымышленные данные.',receivedAt:Date.now()},{id:'demo2',simId:'work',simName:'Рабочая SIM',sender:'900',body:'Пример короткого отправителя. Здесь будет полный текст входящего SMS.',receivedAt:Date.now()-3600000}];render();};
 $('exitdemo').onclick=()=>action(async()=>{demo=false;await refresh();});
@@ -73,6 +73,7 @@ async function init(){
 }
 window.addEventListener('online',()=>{say('Интернет доступен.');});window.addEventListener('offline',()=>say('Нет интернета. Сохранённая история доступна.'));
 function lock(){
+ stopScanner();clearRecipientQR();
  privateKey=null;rows=[];demo=false;$('messages').replaceChildren();$('count').textContent='0';$('search').value='';$('config').value='';$('export').value='';$('feedback').textContent='';$('application').hidden=true;$('auth').hidden=false;$('password').value='';$('password-confirm').value='';$('auth-error').textContent='';
 }
 $('lock').onclick=lock;
@@ -100,4 +101,26 @@ window.addEventListener('storage',e=>{if(e.key==='sms-bridge-reset')location.rel
 async function authInit(){
  try{vaultRecord=await BridgeDB.get('vault');setupMode=!vaultRecord;$('auth-title').textContent=setupMode?'Создайте пароль':'Вход';$('auth-help').textContent=setupMode?'Этот пароль шифрует историю SMS. Минимум 8 символов. Запомните его: восстановления нет.':'Введите пароль для открытия истории.';$('confirm-box').hidden=!setupMode;$('password-confirm').required=setupMode;$('password').autocomplete=setupMode?'new-password':'current-password';$('unlock').textContent=setupMode?'Создать пароль':'Открыть';await init();}catch(e){$('auth-error').textContent=e.message;}
 }
+let qrExpiryTimer=null;
+function clearRecipientQR(){clearInterval(qrExpiryTimer);qrExpiryTimer=null;$('recipient-qr').hidden=true;$('recipient-qr').width=0;$('qr-expiry').textContent='';}
+function showRecipientQR(invitation){
+ clearRecipientQR();
+ const expiry=invitation?.expiresAt;
+ const update=()=>{const seconds=Math.max(0,Math.ceil((expiry-Date.now())/1000));$('qr-expiry').textContent=seconds>0?'Подтвердите на Android в течение '+Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'):'Время привязки истекло. Если уже подтвердили на Android — всё готово. Иначе создайте и сканируйте новый QR.';if(!seconds){$('recipient-qr').hidden=true;$('recipient-qr').width=0;clearInterval(qrExpiryTimer);}};
+ if(!Number.isSafeInteger(expiry)||expiry<=Date.now()){update();return;}
+ try{BridgeQR.draw($('recipient-qr'),JSON.parse($('export').value));$('recipient-qr').hidden=false;}catch{say('Данные слишком велики для QR. Используйте ручную передачу.');}
+ update();qrExpiryTimer=setInterval(update,1000);
+}
+function stopScanner(){BridgeQR.stop();$('scanner').hidden=true;$('scan-source').disabled=false;}
+$('stop-scan').onclick=stopScanner;
+$('scan-source').onclick=async()=>{
+ if(!privateKey||busy)return;
+ $('scanner').hidden=false;$('scan-source').disabled=true;$('scan-result').textContent='';
+ await BridgeQR.scan($('qr-video'),raw=>{
+  stopScanner();if(!privateKey)return;
+  try{if(raw.length>16000)throw Error('QR слишком большой.');const parsed=JSON.parse(raw);const cfg=BridgeCore.setup(parsed);if(!/^[A-Za-z0-9_-]{43}$/.test(parsed.pairingToken||'')||!Number.isSafeInteger(parsed.expiresAt)||parsed.expiresAt<=Date.now())throw Error('Создайте новый QR на Android: этот код истёк или повреждён.');$('config').value=JSON.stringify(parsed);$('scan-result').textContent='Прочитан QR: '+cfg.name+'. Нажмите «Подключить уведомления». ';say('QR прочитан. Подключите уведомления.');}catch(e){say(e instanceof SyntaxError?'Это не QR подключения SMS Bridge.':e.message);}
+ },e=>{stopScanner();say(e.name==='NotAllowedError'?'Разрешите доступ к камере в настройках сайта и попробуйте снова.':e.message||'Не удалось открыть камеру.');});
+};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)stopScanner();});
+window.addEventListener('pagehide',stopScanner);
 authInit();

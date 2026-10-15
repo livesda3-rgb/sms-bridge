@@ -26,7 +26,7 @@ public class MainActivity extends Activity {
         ScrollView scroll=new ScrollView(this); LinearLayout root=new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(20),dp(28),dp(20),dp(20));scroll.addView(root);setContentView(scroll);
         root.addView(text("SMS Bridge",28));
-        root.addView(text("0.2 · SMS → Web Push",16));
+        root.addView(text("0.3 · SMS → Web Push",16));
         root.addView(text("Принимает SMS и отправляет их выбранному получателю через интернет. Для каждой SIM включите пересылку отдельно. MMS и отправка исходящих SMS не поддерживаются. После перезагрузки нужно один раз разблокировать телефон.",14));
         status=text("",14);root.addView(status);
         button(root,"1. Назначить основным SMS-приложением",()->{
@@ -44,8 +44,9 @@ public class MainActivity extends Activity {
         button(root,"Вернуть прежнее SMS-приложение",()->startActivity(new Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS)));
         button(root,"Обновить",this::render);
         root.addView(text("Получатели и пересылка",22));
-        button(root,"Создать подключение клиента (15 минут)",this::invite);
-        button(root,"Добавить получателя из веб-клиента",this::importRecipient);
+        button(root,"1. Показать QR подключения (15 минут)",this::invite);
+        button(root,"2. Сканировать ответный QR с iPhone",this::scanRecipient);
+        button(root,"Вставить данные вручную",this::importRecipient);
         delivery=text("",14);root.addView(delivery);
         routing=new LinearLayout(this);routing.setOrientation(LinearLayout.VERTICAL);root.addView(routing);
         button(root,"Обновить SIM и правила",this::renderRoutes);
@@ -73,14 +74,32 @@ public class MainActivity extends Activity {
     private void fail(Exception e){new AlertDialog.Builder(this).setTitle("Не удалось выполнить").setMessage(e.getMessage()==null?e.getClass().getSimpleName():e.getMessage()).setPositiveButton("Понятно",null).show();}
     private EditText input(String hint,String value){EditText e=new EditText(this);e.setHint(hint);e.setText(value);return e;}
     private void invite(){try(BridgeStore b=new BridgeStore(this)){
-        String data=b.invite().toString(2);EditText v=input("",data);v.setTextSize(12);v.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        new AlertDialog.Builder(this).setTitle("Вставьте в веб-клиент").setMessage("Код одноразовый, действует 15 минут. После подключения передайте данные получателя обратно сюда и подтвердите SIM.").setView(v).setPositiveButton("Скопировать",(d,w)->{((android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("SMS Bridge",data));Toast.makeText(this,"Скопировано",Toast.LENGTH_SHORT).show();}).setNegativeButton("Закрыть",null).show();
+        JSONObject invitation=b.invite();String data=invitation.toString();
+        com.google.zxing.common.BitMatrix matrix=new com.google.zxing.qrcode.QRCodeWriter().encode(data,com.google.zxing.BarcodeFormat.QR_CODE,800,800,Collections.singletonMap(com.google.zxing.EncodeHintType.CHARACTER_SET,"UTF-8"));
+        android.graphics.Bitmap bitmap=android.graphics.Bitmap.createBitmap(800,800,android.graphics.Bitmap.Config.RGB_565);
+        for(int y=0;y<800;y++)for(int x=0;x<800;x++)bitmap.setPixel(x,y,matrix.get(x,y)?android.graphics.Color.BLACK:android.graphics.Color.WHITE);
+        LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(12),0,dp(12),0);
+        ImageView image=new ImageView(this);image.setImageBitmap(bitmap);image.setAdjustViewBounds(true);box.addView(image,new LinearLayout.LayoutParams(-1,-2));
+        TextView countdown=text("",14);box.addView(countdown);
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Сканируйте из SMS Bridge на iPhone").setMessage("На iPhone нажмите «Сканировать QR с Android», затем подключите уведомления. Ответный QR покажите камере этого телефона.").setView(box).setPositiveButton("Сканировать ответный QR",(d,w)->scanRecipient()).setNeutralButton("Скопировать текст",(d,w)->((android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("SMS Bridge",data))).setNegativeButton("Закрыть",null).create();
+        long expiry=invitation.getLong("expiresAt");
+        Runnable timer=new Runnable(){public void run(){long seconds=Math.max(0,(expiry-System.currentTimeMillis())/1000);countdown.setText(seconds>0?"Осталось: "+seconds/60+":"+String.format(java.util.Locale.ROOT,"%02d",seconds%60):"Срок истёк. Закройте и создайте новый QR.");if(seconds==0)image.setVisibility(android.view.View.GONE);else if(dialog.isShowing())handler.postDelayed(this,1000);}};
+        dialog.setOnDismissListener(d->handler.removeCallbacks(timer));dialog.show();timer.run();
+    }catch(Exception e){fail(e);}}
+    private void scanRecipient(){
+        new com.google.zxing.integration.android.IntentIntegrator(this).setCaptureActivity(QrCaptureActivity.class).setDesiredBarcodeFormats(com.google.zxing.integration.android.IntentIntegrator.QR_CODE).setPrompt("Наведите камеру на ответный QR в SMS Bridge на iPhone").setBeepEnabled(false).setBarcodeImageEnabled(false).setOrientationLocked(false).initiateScan();
+    }
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
+        com.google.zxing.integration.android.IntentResult result=com.google.zxing.integration.android.IntentIntegrator.parseActivityResult(requestCode,resultCode,data);
+        if(result!=null){if(result.getContents()!=null)confirmRecipient(result.getContents());return;}
+        super.onActivityResult(requestCode,resultCode,data);
+    }
+    private void confirmRecipient(String raw){try(BridgeStore b=new BridgeStore(this)){
+        JSONObject r=b.validateRecipient(raw);
+        new AlertDialog.Builder(this).setTitle("Разрешить подключение?").setMessage("Получатель: "+r.getString("name")+"\nPush-сервис: "+WebPush.endpoint(r.getJSONObject("subscription").getString("endpoint")).getHost()+"\n\nПосле подтверждения выберите «Настроить SIM» и назначьте этого получателя.").setPositiveButton("Разрешить",(d,w)->{try(BridgeStore db=new BridgeStore(this)){db.approve(raw);renderRoutes();Toast.makeText(this,"Получатель добавлен. Настройте SIM и отправьте тестовый push.",Toast.LENGTH_LONG).show();}catch(Exception e){fail(e);}}).setNegativeButton("Отмена",null).show();
     }catch(Exception e){fail(e);}}
     private void importRecipient(){EditText v=input("Вставьте JSON получателя","");v.setMinLines(4);v.setMaxLines(10);
-        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Добавить получателя").setView(v).setPositiveButton("Проверить",null).setNegativeButton("Отмена",null).create();dialog.setOnShowListener(x->dialog.getButton(-1).setOnClickListener(y->{try(BridgeStore b=new BridgeStore(this)){
-            String raw=v.getText().toString();JSONObject r=b.validateRecipient(raw);
-            new AlertDialog.Builder(this).setTitle("Разрешить подключение?").setMessage("Получатель: "+r.getString("name")+"\nPush-сервис: "+WebPush.endpoint(r.getJSONObject("subscription").getString("endpoint")).getHost()+"\n\nДоступ к SIM назначается отдельно. Без правила SMS не пересылаются.").setPositiveButton("Разрешить",(d,w)->{try(BridgeStore db=new BridgeStore(this)){db.approve(raw);dialog.dismiss();renderRoutes();}catch(Exception e){fail(e);}}).setNegativeButton("Отмена",null).show();
-        }catch(Exception e){fail(e);}}));dialog.show();
+        new AlertDialog.Builder(this).setTitle("Добавить получателя вручную").setView(v).setPositiveButton("Проверить",(d,w)->confirmRecipient(v.getText().toString())).setNegativeButton("Отмена",null).show();
     }
     private void renderRoutes(){
         routing.removeAllViews();try(BridgeStore b=new BridgeStore(this)){
