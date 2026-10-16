@@ -105,6 +105,8 @@ $('reset-vault').onclick=async()=>{
 };
 window.addEventListener('storage',e=>{if(e.key==='sms-bridge-reset')location.reload();});
 async function authInit(){
+ // Old unversioned HTML may still load a newly deployed app.js. Refresh the shell first.
+ if(!$('read-filter')){location.replace('./?update='+Date.now());return;}
  try{
   vaultRecord=await BridgeDB.get('vault');
   if(!vaultRecord){
