@@ -17,7 +17,7 @@
     for(const p of parts){if(!p.partCount){out.push(p);continue;}const key=p.sourceId+':'+p.messageId;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(p);}
     for(const group of groups.values()){
       group.sort((a,b)=>a.partIndex-b.partIndex);const a=group[0],complete=group.length===a.partCount&&group.every((p,i)=>p.partIndex===i&&p.partCount===a.partCount&&p.sender===a.sender&&p.simId===a.simId&&p.receivedAt===a.receivedAt);
-      out.push({...a,id:a.messageId,body:complete?group.map(p=>p.body).join(''):'Сообщение загружается: получено частей '+group.length+' из '+a.partCount+'.',incomplete:!complete});
+      out.push({...a,storedAt:Math.max(...group.map(p=>p.storedAt||0)),id:a.messageId,body:complete?group.map(p=>p.body).join(''):'Сообщение загружается: получено частей '+group.length+' из '+a.partCount+'.',incomplete:!complete});
     }
     return out.sort((a,b)=>b.receivedAt-a.receivedAt);
   }

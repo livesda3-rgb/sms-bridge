@@ -14,3 +14,8 @@ test('multipart SMS assembles out of order and marks missing pieces',()=>{
  assert.equal(core.assemble([b,a])[0].body,'А🔐Б');assert.equal(core.assemble([a])[0].incomplete,true);
  assert.throws(()=>core.message({...common,id:'msg-7',partIndex:7,body:'x'},'home'));
 });
+
+test('assembled SMS reports arrival of the last received part',()=>{
+ const parts=[0,1].map(i=>({id:'group-'+i,messageId:'group',sourceId:'home',partIndex:i,partCount:2,sender:'TEST',simId:'sim',receivedAt:100,storedAt:i===0?300:200,body:String(i)}));
+ const result=core.assemble(parts);assert.equal(result[0].storedAt,300);assert.equal(result[0].body,'01');
+});

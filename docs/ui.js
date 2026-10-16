@@ -3,6 +3,7 @@ function showMessage(m){
  const dialog=document.createElement('dialog');dialog.className='message-detail';
  const close=node('button','Закрыть');close.onclick=()=>dialog.close();
  const copyButton=node('button','Скопировать текст');copyButton.onclick=()=>copy(m.body);
+ if(Number.isSafeInteger(m.storedAt)){dialog.append(node('p','SMS на Android: '+new Date(m.receivedAt).toLocaleString()+' · сохранено клиентом: '+new Date(m.storedAt).toLocaleString(),'hint'),node('p','Разница часов устройств: '+Math.round((m.storedAt-m.receivedAt)/1000)+' с. При неверном времени на телефонах это не точный замер задержки.','hint'));}
  dialog.append(node('h2',m.sender),node('p',m.simName+' · '+new Date(m.receivedAt).toLocaleString()),node('p',m.body,'full-message'),copyButton,close);
  dialog.addEventListener('close',()=>dialog.remove());document.body.append(dialog);dialog.showModal();
 }
@@ -19,7 +20,7 @@ $('check-update').onclick=async()=>{
  if(updateBusy)return;updateBusy=true;$('check-update').disabled=true;
  try{const r=await fetch('./version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('Сервер обновлений недоступен');const v=await r.json();if(!/^\d+\.\d+(\.\d+)?$/.test(v.version))throw Error('Некорректная версия');
  const reg=await navigator.serviceWorker.getRegistration();if(reg)await reg.update();
- $('update-status').textContent='Установлено: 0.7 · на сайте: '+v.version+(v.version==='0.7'?' · актуальная версия.':' · доступно обновление.');$('apply-update').hidden=false;
+ $('update-status').textContent='Установлено: 0.7.1 · на сайте: '+v.version+(v.version==='0.7.1'?' · актуальная версия.':' · доступно обновление.');$('apply-update').hidden=false;
  }catch(e){$('update-status').textContent='Не удалось проверить: '+e.message+'. Подключения и SMS сохранены.';}finally{updateBusy=false;$('check-update').disabled=false;}
 };
 $('apply-update').onclick=async()=>{

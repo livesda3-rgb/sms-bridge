@@ -1,7 +1,7 @@
 'use strict';
 importScripts('./core.js','./db.js','./vault.js');
-const CACHE='sms-bridge-shell-v7';
-const ASSETS=['./','./index.html','./style.css?v=0.7','./app.js?v=0.7','./ui.js?v=0.7','./qr.js?v=0.7','./vendor/qrcode.js?v=0.7','./vendor/jsqr.js?v=0.7','./core.js?v=0.7','./db.js?v=0.7','./vault.js?v=0.7','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='sms-bridge-shell-v8';
+const ASSETS=['./','./index.html','./style.css?v=0.7.1','./app.js?v=0.7.1','./ui.js?v=0.7.1','./qr.js?v=0.7.1','./vendor/qrcode.js?v=0.7.1','./vendor/jsqr.js?v=0.7.1','./core.js?v=0.7.1','./db.js?v=0.7.1','./vault.js?v=0.7.1','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS.map(u=>new Request(u,{cache:'reload'})))).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil((async()=>{for(const k of await caches.keys())if(k.startsWith('sms-bridge-shell-')&&k!==CACHE)await caches.delete(k);await self.clients.claim();})()));
 self.addEventListener('message',e=>{if(e.data?.type==='SKIP_WAITING')self.skipWaiting();});
