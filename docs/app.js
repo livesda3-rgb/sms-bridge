@@ -1,5 +1,6 @@
 'use strict';
 const $=id=>document.getElementById(id);
+let readIds=new Set();
 let registration, rows=[], demo=false, busy=false, privateKey=null, vaultRecord=null, setupMode=false, failures=0, blockedUntil=0;
 const say=text=>{$('feedback').textContent=text;};
 const node=(tag,text,cls)=>{const e=document.createElement(tag);e.textContent=text;if(cls)e.className=cls;return e;};
@@ -11,15 +12,15 @@ function render(){
  for(const [id,name] of new Map(rows.map(x=>[x.simId,x.simName])))$('sim').add(new Option(name,id));
  $('sim').value=selected;
  const q=$('search').value.toLocaleLowerCase();
- const filtered=rows.filter(x=>(!$('sim').value||x.simId===$('sim').value)&&(!q||(x.sender+' '+x.body).toLocaleLowerCase().includes(q)));
+ const filtered=rows.filter(x=>(!$('read-filter').value||!readIds.has(x.id))&&(!$('sim').value||x.simId===$('sim').value)&&(!q||(x.sender+' '+x.body).toLocaleLowerCase().includes(q)));
  $('count').textContent=rows.length; $('messages').replaceChildren();$('demo-banner').hidden=!demo;
  if(!filtered.length){const e=node('div','','empty');e.append(node('span','↘','symbol'),node('strong',rows.length?'Ничего не найдено':'Здесь будут ваши SMS'),node('p',rows.length?'Измените поиск или выберите другую SIM.':'Подключите домашний телефон или нажмите «Пример», чтобы посмотреть интерфейс.'));$('messages').append(e);}
- for(const m of filtered){const a=node('article','','message'),meta=node('div','','meta');meta.append(node('b',m.simName),node('time',new Date(m.receivedAt).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})));a.append(meta,node('h3',m.sender),node('p',m.body));const b=node('button','Скопировать SMS');b.onclick=()=>copy(m.body);a.append(b);$('messages').append(a);}
+ for(const m of filtered){const a=node('article','','message'),meta=node('div','','meta');meta.append(node('b',m.simName),node('time',new Date(m.receivedAt).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})));a.classList.toggle('unread',!readIds.has(m.id));a.append(meta,node('h3',m.sender),node('p',m.body.slice(0,160)));const details=node('button',readIds.has(m.id)?'Открыть':'Прочитать');details.onclick=async()=>{if(!demo){readIds.add(m.id);await BridgeDB.set('readIds',[...readIds].slice(-1000));}showMessage(m);render();};a.append(details);const b=node('button','Скопировать SMS');b.onclick=()=>copy(m.body);a.append(b);$('messages').append(a);}
 }
 async function copy(text){try{await navigator.clipboard.writeText(text);say('Скопировано.');}catch{say('Копирование недоступно. Выделите текст и скопируйте вручную.');}}
 async function refresh(){
- if(!privateKey)return;const key=privateKey;
- if(!demo){const encrypted=await BridgeDB.list(),messages=[];for(const r of encrypted)messages.push(await BridgeVault.open(key,r));if(privateKey!==key)return;rows=BridgeCore.assemble(messages);}
+ if(!privateKey)return;const key=privateKey;readIds=new Set(await BridgeDB.get('readIds')||[]);
+ if(!demo){const encrypted=await BridgeDB.list(),messages=[];for(const r of encrypted)messages.push(await BridgeVault.open(key,r));if(privateKey!==key)return;rows=BridgeCore.assemble(messages).sort((a,b)=>b.receivedAt-a.receivedAt);}
  if(privateKey===key)render();
 }
 async function state(){
@@ -63,7 +64,7 @@ async function init(){
  try{
   $('name').value=await BridgeDB.get('name')||'';$('preview').checked=!!await BridgeDB.get('preview');const cfg=await BridgeDB.get('source');if(cfg)$('config').value=JSON.stringify({...cfg,...await BridgeDB.get('invitation')},null,2);
   if(!isSecureContext||!('serviceWorker'in navigator))throw Error('Нужен HTTPS и браузер с поддержкой Service Worker.');
-  const registered=await navigator.serviceWorker.register('./sw.js');
+  const registered=await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});
   const updating=registered.installing||registered.waiting;
   if(updating&&updating.state!=='activated')await new Promise((resolve,reject)=>{updating.addEventListener('statechange',()=>{if(updating.state==='activated')resolve();if(updating.state==='redundant')reject(Error('Не удалось обновить клиент. Откройте его заново при наличии интернета.'));});});
   registration=await navigator.serviceWorker.ready;
@@ -73,11 +74,13 @@ async function init(){
 }
 window.addEventListener('online',()=>{say('Интернет доступен.');});window.addEventListener('offline',()=>say('Нет интернета. Сохранённая история доступна.'));
 function lock(){
+ for(const dialog of document.querySelectorAll?.('dialog')||[])dialog.remove();
+ $('new-pin').value='';$('repeat-pin').value='';
  stopScanner();clearRecipientQR();
  privateKey=null;rows=[];demo=false;$('messages').replaceChildren();$('count').textContent='0';$('search').value='';$('config').value='';$('export').value='';$('feedback').textContent='';$('application').hidden=true;$('auth').hidden=false;$('password').value='';$('password-confirm').value='';$('auth-error').textContent='';
 }
 $('lock').onclick=lock;
-document.addEventListener('visibilitychange',()=>{if(document.hidden){stopScanner();clearRecipientQR();}else if(privateKey){refresh().then(state).catch(e=>say(e.message));}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){stopScanner();clearRecipientQR();if(window.pinEnabled&&privateKey){const key=privateKey;lock();window.showPinGate(key);}}else if(privateKey){refresh().then(state).catch(e=>say(e.message));}});
 $('auth-form').onsubmit=async e=>{
  e.preventDefault();if(Date.now()<blockedUntil){$('auth-error').textContent='Подождите несколько секунд перед повтором.';return;}
  $('unlock').disabled=true;const password=$('password').value;
@@ -113,7 +116,7 @@ async function authInit(){
   const access=await BridgeDB.get('deviceAccess');
   $('confirm-box').hidden=true;$('password-confirm').required=false;$('password').autocomplete='current-password';
   $('auth-title').textContent='Отключение пароля';$('auth-help').textContent='Введите прежний пароль один раз, чтобы сохранить историю. После этого клиент будет открываться автоматически.';$('unlock').textContent='Отключить пароль и открыть';
-  if(access?.vaultId===vaultRecord.id&&access.key)await openClient(access.key);
+  if(access?.vaultId===vaultRecord.id&&access.key){if(await BridgeDB.get('pinLock')){await window.showPinGate(access.key);}else await openClient(access.key);}
   await init();
  }catch(e){$('auth-error').textContent=e.message;}
 }

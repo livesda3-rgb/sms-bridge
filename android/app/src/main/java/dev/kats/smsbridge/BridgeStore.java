@@ -53,14 +53,15 @@ final class BridgeStore extends SQLiteOpenHelper {
     List<String[]> routes(){List<String[]> out=new ArrayList<>();try(Cursor c=getReadableDatabase().rawQuery("SELECT sim,label,number FROM routes",null)){while(c.moveToNext())out.add(new String[]{c.getString(0),c.getString(1),c.getString(2)});}return out;}
     void enqueue(String sim,String sender,String body,long received) throws Exception {
         SQLiteDatabase d=getWritableDatabase();d.beginTransaction();try{
-            String[] route=route(sim);if(route==null||route[3]==null)return;
-            try(Cursor c=d.rawQuery("SELECT enabled FROM recipients WHERE id=?",new String[]{route[3]})){if(!c.moveToFirst()||c.getInt(0)!=1)return;}
+            String[] route=route(sim);if(route==null||route[3]==null){diagnostic("SIM определена · пересылка выключена: назначьте получателя в SIM и правилах");d.setTransactionSuccessful();return;}
+            try(Cursor c=d.rawQuery("SELECT enabled FROM recipients WHERE id=?",new String[]{route[3]})){if(!c.moveToFirst()||c.getInt(0)!=1){diagnostic("Правило найдено · получателю нужна повторная привязка");d.setTransactionSuccessful();return;}}
             List<String> parts=WebPush.chunks(body);if(parts.size()>100)throw new IllegalArgumentException("SMS exceeds 100 push parts");String messageId=UUID.randomUUID().toString();
             for(int i=0;i<parts.size();i++){
                 JSONObject m=new JSONObject().put("version",1).put("type","sms").put("id",messageId+"-"+i).put("messageId",messageId).put("partIndex",i).put("partCount",parts.size()).put("sourceId",Identity.source(context)).put("simId",route[0]).put("simName",route[1]).put("sender",sender).put("body",parts.get(i)).put("receivedAt",received);
                 if(WebPush.utf(m.toString()).length>3993)throw new IllegalArgumentException("Push payload too large");
                 ContentValues v=new ContentValues();v.put("id",m.getString("id"));v.put("recipient",route[3]);v.put("sim",route[0]);v.put("payload",m.toString());v.put("created",System.currentTimeMillis());d.insertOrThrow("queue",null,v);
             }
+            diagnostic("SMS принято приложением · SIM и правило определены · частей в очереди: "+parts.size());
             d.execSQL("DELETE FROM queue WHERE id NOT IN (SELECT id FROM queue ORDER BY created DESC LIMIT 1000)");d.setTransactionSuccessful();
         }finally{d.endTransaction();}DeliveryJob.schedule(context);
     }
@@ -76,7 +77,9 @@ final class BridgeStore extends SQLiteOpenHelper {
         else if(code>=400&&code<500&&code!=408&&code!=429){d.delete("queue","id=?",new String[]{id});status("HTTP "+code+" · push отклонён");}
         else {ContentValues v=new ContentValues();v.put("attempts",attempts+1);v.put("next",System.currentTimeMillis()+Math.min(3600000,30000L*(1L<<Math.min(attempts,7))));d.update("queue",v,"id=?",new String[]{id});status(code==0?"Сеть недоступна · повтор в очереди":"HTTP "+code+" · повтор в очереди");}
     }
+    void diagnostic(String text){ContentValues v=new ContentValues();v.put("key","smsDiagnostic");v.put("value",new java.util.Date()+" · "+text);getWritableDatabase().insertWithOnConflict("state",null,v,SQLiteDatabase.CONFLICT_REPLACE);}
+    String diagnostic(){try(Cursor c=getReadableDatabase().rawQuery("SELECT value FROM state WHERE key='smsDiagnostic'",null)){return c.moveToFirst()?c.getString(0):"Новых SMS ещё не было";}}
     boolean pending(){return DatabaseUtils.queryNumEntries(getReadableDatabase(),"queue")>0;}
     void status(String text){ContentValues v=new ContentValues();v.put("key","delivery");v.put("value",text);getWritableDatabase().insertWithOnConflict("state",null,v,SQLiteDatabase.CONFLICT_REPLACE);}
-    String status(){try(Cursor c=getReadableDatabase().rawQuery("SELECT value FROM state WHERE key='delivery'",null)){return "В очереди: "+DatabaseUtils.queryNumEntries(getReadableDatabase(),"queue")+"\n"+(c.moveToFirst()?c.getString(0):"Отправок ещё не было");}}
+    String status(){try(Cursor c=getReadableDatabase().rawQuery("SELECT value FROM state WHERE key='delivery'",null)){return diagnostic()+"\nВ очереди: "+DatabaseUtils.queryNumEntries(getReadableDatabase(),"queue")+"\n"+(c.moveToFirst()?c.getString(0):"Отправок ещё не было");}}
 }

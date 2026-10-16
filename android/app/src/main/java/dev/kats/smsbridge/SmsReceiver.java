@@ -36,7 +36,9 @@ public class SmsReceiver extends BroadcastReceiver {
                 } catch(Exception e) { detail+="; SMS-база: "+e.getClass().getSimpleName(); }
                 db.add(sender,body.toString(),sub,detail);
                 String simKey=SimIdentity.key(context,sub);
-                if(simKey!=null)try(BridgeStore bridge=new BridgeStore(context)){
+                try(BridgeStore bridge=new BridgeStore(context)){
+                    if(simKey==null){bridge.diagnostic("SMS принято приложением · SIM не определена (subId="+sub+") · пересылка не выполнена");}
+                    else
                     try { bridge.enqueue(simKey,sender,body.toString(),System.currentTimeMillis()); }
                     catch(Exception e){bridge.status("Ошибка постановки SMS в очередь: "+e.getClass().getSimpleName());}
                 }
