@@ -65,3 +65,27 @@ test('release swipe actions use real history while vertical scroll, cancellation
   get('leading').click();assert.equal(w.document.querySelectorAll('.swipe-delete').length,0);
  }finally{h.dom.window.close();}
 });
+test('0.8.1 scroll suppresses the following click, a fresh tap still works, including selection mode',async()=>{
+ const f=await fixture(),h=await open(f),{w,get}=h;
+ function touch(b,type,x=100,y=100){const e=new w.Event(type,{bubbles:true,cancelable:true});Object.defineProperty(e,'touches',{value:[{clientX:x,clientY:y}]});b.dispatchEvent(e);return e;}
+ const row=()=>w.document.querySelector('#threads .thread[aria-label^="Bank, SIM 1"]');
+ try{
+  assert.equal(w.document.querySelector('.toolbar .brand small'),null);assert.equal(w.document.querySelector('#main .subtitle'),null);assert.equal(w.document.querySelector('.demo-controls'),null);
+  let b=row();touch(b,'touchstart');assert.equal(touch(b,'touchmove',103,170).defaultPrevented,false);touch(b,'touchend');b.click();assert.equal(w.location.hash,'');assert.equal((await f.db.get('readIds')).includes('new'),false);
+  touch(b,'touchstart');touch(b,'touchend');b.click();await until(()=>w.location.hash.startsWith('#thread/'));await until(()=>w.document.querySelector('.conversation'));await until(()=>!w.eval('busy'));await pause();
+  w.location.hash='';await until(()=>w.document.querySelector('#threads'));get('leading').click();b=row();touch(b,'touchstart');touch(b,'touchmove',99,160);touch(b,'touchend');b.click();assert.equal(get('selection-count').textContent,'Выбрано: 0');
+  touch(b,'touchstart');touch(b,'touchend');b.click();assert.equal(get('selection-count').textContent,'Выбрано: 1');
+ }finally{h.dom.window.close();}
+});
+test('0.8.1 first outside click only dismisses either menu; inside actions and second click work',async()=>{
+ const f=await fixture(),h=await open(f),{w,get}=h;
+ const row=()=>w.document.querySelector('#threads .thread[aria-label^="Bank, SIM 1"]');
+ try{
+  get('menu-button').click();get('leading').click();assert.equal(get('menu-button').getAttribute('aria-expanded'),'false');assert.equal(get('leading').getAttribute('aria-pressed'),'false');
+  get('menu-button').click();row().click();assert.equal(w.location.hash,'');assert.equal(get('menu-button').getAttribute('aria-expanded'),'false');assert.equal((await f.db.get('readIds')).includes('new'),false);
+  row().click();await until(()=>w.location.hash.startsWith('#thread/'));await until(()=>w.document.querySelector('.conversation'));await pause();
+  w.location.hash='';await until(()=>w.document.querySelector('#threads'));get('leading').click();row().click();get('selection-actions').click();
+  const neighbor=()=>w.document.querySelector('#threads .thread[aria-label^="Bank, SIM 2"]');neighbor().click();assert.equal(get('selection-count').textContent,'Выбрано: 1');assert.equal(get('selection-actions').getAttribute('aria-expanded'),'false');
+  neighbor().click();assert.equal(get('selection-count').textContent,'Выбрано: 2');get('selection-actions').click();get('action-read').click();await until(()=>!get('leading').textContent.includes('Отмена'));assert.equal((await f.db.get('readIds')).includes('neighbor'),true);
+ }finally{h.dom.window.close();}
+});
