@@ -1,8 +1,126 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#142e2a"><meta name="apple-mobile-web-app-capable" content="yes"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'"><title>SMS Bridge — ваши SMS рядом</title><link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon-192.png"><link rel="stylesheet" href="./style.css?v=0.7.1"><script defer src="./core.js?v=0.7.1"></script><script defer src="./db.js?v=0.7.1"></script><script defer src="./vault.js?v=0.7.1"></script><script defer src="./vendor/qrcode.js?v=0.7.1"></script><script defer src="./vendor/jsqr.js?v=0.7.1"></script><script defer src="./qr.js?v=0.7.1"></script><script defer src="./app.js?v=0.7.1"></script></head><body>
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#142e2a"><meta name="apple-mobile-web-app-capable" content="yes"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'"><title>SMS Bridge — ваши SMS рядом</title><link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon-192.png"><link rel="stylesheet" href="./releases/0.8.0/style.css"><script defer src="./core.js?v=0.7.1"></script><script defer src="./db.js?v=0.7.1"></script><script defer src="./vault.js?v=0.7.1"></script><script defer src="./vendor/qrcode.js?v=0.7.1"></script><script defer src="./vendor/jsqr.js?v=0.7.1"></script><script defer src="./qr.js?v=0.7.1"></script><script defer src="./releases/0.8.0/app.js"></script><meta name="sms-bridge-build" content="0.8.0"></head><body>
 <section id="auth" class="auth-screen" aria-label="Вход в SMS Bridge"><div class="panel auth-panel"><h1>SMS Bridge</h1><h2 id="auth-title">Вход</h2><p id="auth-help">Проверяем хранилище…</p><form id="auth-form"><label for="password">Пароль</label><input id="password" type="password" autocomplete="current-password" minlength="8" required><div id="confirm-box" hidden><label for="password-confirm">Повторите пароль</label><input id="password-confirm" type="password" autocomplete="new-password"></div><button id="unlock" type="submit" class="primary">Открыть</button></form><p id="auth-error" role="alert"></p><button id="reset-vault" class="textbutton danger">Забыли пароль? Сбросить клиент</button><p id="auth-note" class="hint">Старый пароль нужен только для перехода на автоматический вход. Сброс удалит историю и потребует новой привязки.</p></div></section><div id="application" hidden>
-<header><a class="brand" href="./"><span class="logo">↗</span>SMS Bridge</a><span class="pill">Клиент · 0.7.1</span><button id="menu-toggle" aria-label="Открыть меню">☰</button><button id="lock" class="textbutton" hidden>Заблокировать</button></header>
+<div class="app">
+ <header class="toolbar">
+  <button id="leading" class="text-button selection-button" aria-label="Выбрать переписки" aria-pressed="false"><svg aria-hidden="true" focusable="false" class="ui-icon"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="10" />
+  <path d="m16 9-5.5 5.5L8 12" />
+</svg>
+</button>
+  <a class="brand" href="#" aria-label="SMS Bridge — сообщения"><span>SMS Bridge<small>0.8.0</small></span></a>
+  <button id="menu-button" class="circle-button" aria-label="Открыть меню" aria-expanded="false" aria-controls="menu"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+ </header>
+ <template id="selection-icon"><svg aria-hidden="true" focusable="false" class="ui-icon"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="10" />
+  <path d="m16 9-5.5 5.5L8 12" />
+</svg>
+</template>
+ <div id="menu" class="menu" hidden>
+  <a href="#sms"><span>Настройки SMS</span><svg aria-hidden="true" focusable="false" class="ui-icon"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" />
+</svg>
+</a>
+  <a href="#delivery"><span>Проверить локальную доставку</span><svg aria-hidden="true" focusable="false" class="ui-icon"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" />
+  <path d="m21.854 2.147-10.94 10.939" />
+</svg>
+</a>
+  <a href="#notifications"><span>Настройки уведомлений</span><svg aria-hidden="true" focusable="false" class="ui-icon"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M10.268 21a2 2 0 0 0 3.464 0" />
+  <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" />
+</svg>
+</a>
+  <a href="#settings"><span>Настройки приложения</span><svg aria-hidden="true" focusable="false" class="ui-icon"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
+  <circle cx="12" cy="12" r="3" />
+</svg>
+</a>
+  <a href="#about"><span>О приложении</span><svg aria-hidden="true" focusable="false" class="ui-icon"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="10" />
+  <path d="M12 16v-4" />
+  <path d="M12 8h.01" />
+</svg>
+</a>
+ </div>
+ <main id="main"></main>
+ <footer id="selection-bar" hidden><span id="selection-count" aria-live="polite"></span><button id="selection-actions" class="circle-button" aria-label="Действия с выбранными переписками" aria-expanded="false" aria-controls="actions-menu"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+<div id="actions-menu" class="menu actions-menu" hidden><button id="action-read">Прочитано</button><button id="action-unread">Не прочитано</button><button id="action-delete" class="danger">Удалить</button></div></footer>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="legacy" hidden>
+<header><a class="brand" href="./"><span class="logo">↗</span>SMS Bridge</a><span class="pill">Клиент · 0.8.0</span><button id="menu-toggle" aria-label="Открыть меню">☰</button><button id="lock" class="textbutton" hidden>Заблокировать</button></header>
 <main><div class="connection"><span id="dot"></span><span id="status">Проверяем подключение…</span></div><div class="workspace"><section id="settings" class="panel setup" hidden><div class="section-title"><h2>Меню</h2><button id="close-menu">Закрыть</button></div><nav class="settings-nav"><button data-tab="pairing">Настройки SMS</button><button data-tab="notifications">Уведомления</button><button data-tab="preferences">Приложение</button><button data-tab="about">О приложении</button></nav><div id="pairing" class="settings-tab"><div class="section-title"><h2>Подключение</h2><span>01</span></div><p id="install">Откройте сайт по HTTPS. На iPhone: Safari → Поделиться → На экран «Домой», затем откройте значок приложения. На Android: меню браузера → Установить приложение.</p><p class="notice">Нужен APK 0.4. Покажите QR на Android и сканируйте его здесь. Затем покажите ответный QR камере Android и назначьте получателя для SIM. Код действует 15 минут.</p><label for="name">Имя этого получателя</label><input id="name" maxlength="80" placeholder="Например, мой iPhone" autocomplete="off"><button id="scan-source" class="primary">1. Сканировать QR с Android</button><div id="scanner" hidden><p>Наведите камеру на QR домашнего телефона.</p><video id="qr-video" autoplay muted playsinline></video><button id="stop-scan">Закрыть камеру</button></div><p id="scan-result" role="status"></p><details id="manual-config"><summary>Вставить данные вручную</summary><label for="config">Данные подключения из домашнего APK</label><textarea id="config" rows="4" placeholder="Вставьте данные подключения целиком" spellcheck="false"></textarea></details><button id="connect" class="primary" disabled>2. Подключить уведомления <span>↗</span></button><p class="hint">Приватный ключ остаётся на домашнем телефоне. Номер телефона получателя для интернет-доставки не нужен.</p><div id="paired" hidden><h3>3. Покажите этот QR домашнему Android</h3><p>На Android 0.4 нажмите «Сканировать ответный QR» и держите камеру на коде, пока не прочитаются все части. Затем подтвердите получателя и настройте SIM.</p><canvas id="recipient-qr" aria-label="Ответный QR подключения" role="img"></canvas><p id="qr-frame" role="status"></p><div id="qr-controls" class="actions" hidden><button id="qr-pause">Пауза</button><button id="qr-next">Следующая часть</button></div><p id="qr-expiry" role="status"></p><details><summary>Передать данные вручную</summary><label for="export">Данные получателя</label><textarea id="export" rows="4" readonly spellcheck="false"></textarea><button id="copy">Скопировать данные получателя</button><p class="hint">Содержит параметры доставки. Передавайте только владельцу домашнего устройства.</p></details></div><button id="disconnect" class="danger">Отключить домашний телефон</button></div>
 <div id="notifications" class="settings-tab" hidden><h2>Уведомления</h2><label for="notification-mode">Содержимое уведомления</label><select id="notification-mode"><option value="hidden">Скрыто</option><option value="sender">Только отправитель</option><option value="full">Отправитель и текст</option></select><label class="check" hidden><input id="preview" type="checkbox">Показывать текст</label><button id="localtest">Локальная проверка уведомления</button><p class="hint">Проверяет показ на этом устройстве. Для проверки интернет-доставки отправьте тестовый push из Android. Для проверки SMS — новое SMS на домашнюю SIM.</p><p>Звук и показ на экране блокировки настраиваются в системных настройках уведомлений. Веб-приложение не может выбрать собственный звук на iPhone.</p></div>
-<div id="preferences" class="settings-tab" hidden><h2>Настройки приложения</h2><p>Клиент 0.7.1 · сборка 16.10.2026</p><button id="check-update">Проверить обновление</button><p id="update-status" role="status"></p><button id="apply-update" hidden>Обновить клиент</button><label for="theme">Оформление</label><select id="theme"><option value="system">Как в системе</option><option value="light">Светлое</option><option value="dark">Тёмное</option></select><h3>PIN входа</h3><p id="pin-status">Выключен</p><p class="hint">PIN закрывает интерфейс на этом устройстве. Это не отдельное шифрование ключа и не защита от доступа к данным браузера. Биометрия пока недоступна.</p><label for="new-pin">Новый PIN (4 цифры)</label><input id="new-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"><label for="repeat-pin">Повторите PIN</label><input id="repeat-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"><button id="set-pin">Установить / изменить PIN</button><button id="disable-pin">Отключить PIN</button></div>
-<div id="about" class="settings-tab" hidden><h2>SMS Bridge</h2><p>Клиент 0.7.1 · Android-сервер 0.5.1<br>Разработчик проекта: Дмитрий · livesda3-rgb</p><p>Домашняя SIM остаётся дома, сообщения приходят вам через интернет.</p><p>iPhone: Safari → Поделиться → На экран «Домой». Откройте установленное приложение и подключите уведомления. Android: меню браузера → Установить приложение.</p><p>Привязка: откройте «Настройки SMS», сканируйте QR из APK, разрешите уведомления, покажите ответный QR Android и назначьте получателя для SIM.</p><p>Push-сервис принимает отправку, но Android пока не получает подтверждение прочтения или доставки клиенту. SMS хранятся локально. Очистка данных сайта удалит историю и подключение.</p><a href="https://github.com/livesda3-rgb/sms-bridge">Исходники и установка APK</a></div></section>
-<section class="panel inbox"><div class="section-title"><h2>Входящие <span id="count" class="count">0</span></h2><button id="demo" class="textbutton">Пример</button></div><div class="filters"><select id="read-filter" aria-label="Прочитанность"><option value="">Все сообщения</option><option value="unread">Непрочитанные</option></select><button id="reset-filters">Сбросить</button><input id="search" type="search" placeholder="Найти отправителя или текст" aria-label="Поиск сообщений"><select id="sim" aria-label="Фильтр SIM"><option value="">Все SIM</option></select></div><div id="demo-banner" class="notice" hidden>Демонстрация: вымышленные сообщения. <button id="exitdemo" class="textbutton">Выйти</button></div><div id="messages"></div><footer class="inbox-footer"><span>До 200 сообщений · на этом устройстве</span><button id="clear" class="textbutton">Очистить</button></footer></section></div><p id="feedback" role="status" aria-live="polite"></p><footer class="page-footer">SMS Bridge <span>Ваш телефон остаётся дома. Вы — на связи.</span><small>PIN входа можно включить в меню. По умолчанию вход свободный. Очистка данных сайта удалит историю и привязку.</small></footer></main></div><script defer src="./ui.js?v=0.7.1"></script></body></html>
+<div id="preferences" class="settings-tab" hidden><h2>Настройки приложения</h2><p>Клиент 0.8.0 · сборка 17.10.2026</p><button id="check-update">Проверить обновление</button><p id="update-status" role="status"></p><button id="apply-update" hidden>Обновить клиент</button><label for="theme">Оформление</label><select id="theme"><option value="system">Как в системе</option><option value="light">Светлое</option><option value="dark">Тёмное</option></select><h3>PIN входа</h3><p id="pin-status">Выключен</p><p class="hint">PIN закрывает интерфейс на этом устройстве. Это не отдельное шифрование ключа и не защита от доступа к данным браузера. Биометрия пока недоступна.</p><label for="new-pin">Новый PIN (4 цифры)</label><input id="new-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"><label for="repeat-pin">Повторите PIN</label><input id="repeat-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"><button id="set-pin">Установить / изменить PIN</button><button id="disable-pin">Отключить PIN</button></div>
+<div id="about" class="settings-tab" hidden><h2>SMS Bridge</h2><p>Клиент 0.8.0 · Android-сервер 0.5.1<br>Разработчик проекта: Дмитрий · livesda3-rgb</p><p>Домашняя SIM остаётся дома, сообщения приходят вам через интернет.</p><p>iPhone: Safari → Поделиться → На экран «Домой». Откройте установленное приложение и подключите уведомления. Android: меню браузера → Установить приложение.</p><p>Привязка: откройте «Настройки SMS», сканируйте QR из APK, разрешите уведомления, покажите ответный QR Android и назначьте получателя для SIM.</p><p>Push-сервис принимает отправку, но Android пока не получает подтверждение прочтения или доставки клиенту. SMS хранятся локально. Очистка данных сайта удалит историю и подключение.</p><a href="https://github.com/livesda3-rgb/sms-bridge">Исходники и установка APK</a></div></section>
+<section class="panel inbox"><div class="section-title"><h2>Входящие <span id="count" class="count">0</span></h2><button id="demo" class="textbutton">Пример</button></div><div class="filters"><select id="read-filter" aria-label="Прочитанность"><option value="">Все сообщения</option><option value="unread">Непрочитанные</option></select><button id="reset-filters">Сбросить</button><input id="search" type="search" placeholder="Найти отправителя или текст" aria-label="Поиск сообщений"><select id="sim" aria-label="Фильтр SIM"><option value="">Все SIM</option></select></div><div id="demo-banner" class="notice" hidden>Демонстрация: вымышленные сообщения. <button id="exitdemo" class="textbutton">Выйти</button></div><div id="messages"></div><footer class="inbox-footer"><span>До 200 сообщений · на этом устройстве</span><button id="clear" class="textbutton">Очистить</button></footer></section></div><p id="feedback" role="status" aria-live="polite"></p><footer class="page-footer">SMS Bridge <span>Ваш телефон остаётся дома. Вы — на связи.</span><small>PIN входа можно включить в меню. По умолчанию вход свободный. Очистка данных сайта удалит историю и привязку.</small></footer></main></div></div><script defer src="./releases/0.8.0/ui.js"></script><script defer src="./releases/0.8.0/threads.js"></script><script defer src="./releases/0.8.0/history.js"></script><script defer src="./releases/0.8.0/client.js"></script></body></html>
