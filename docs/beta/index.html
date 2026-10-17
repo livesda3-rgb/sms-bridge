@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru" data-theme="system">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f8fa"><meta name="apple-mobile-web-app-capable" content="yes">
+<title>SMS Bridge · Beta</title><link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon-192.png">
+<script>try{document.documentElement.dataset.theme=JSON.parse(localStorage.getItem('smsbridge-beta-ui-v1')||'{}').theme||'system'}catch{}</script>
+<link rel="stylesheet" href="./style.css?v=0.8.0-beta.1">
+<script defer src="./core.js"></script><script defer src="./threads.js"></script><script defer src="./app.js?v=0.8.0-beta.1"></script>
+</head>
+<body>
+<div class="app">
+ <header class="toolbar">
+  <button id="leading" class="text-button">Выбрать</button>
+  <a class="brand" href="#" aria-label="SMS Bridge — сообщения"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 21V11m22 10V11M5 15c7 0 4-7 11-7s4 7 11 7M5 21c7 0 4-7 11-7s4 7 11 7M16 8v16"/></svg><span>SMS Bridge<small>BETA</small></span></a>
+  <button id="menu-button" class="circle-button" aria-label="Открыть меню" aria-expanded="false" aria-controls="menu"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+ </header>
+ <div id="menu" class="menu" hidden>
+  <a href="#sms"><span>Настройки SMS</span><span aria-hidden="true">⌁</span></a>
+  <a href="#delivery"><span>Проверить локальную доставку</span><span aria-hidden="true">↗</span></a>
+  <a href="#notifications"><span>Настройки уведомлений</span><span aria-hidden="true">♧</span></a>
+  <a href="#settings"><span>Настройки приложения</span><span aria-hidden="true">⚙</span></a>
+  <a href="#about"><span>О приложении</span><span aria-hidden="true">ⓘ</span></a>
+ </div>
+ <main id="main"></main>
+ <footer id="selection-bar" hidden><span id="selection-count" aria-live="polite"></span><button id="mark-read">Прочитано</button></footer>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+</body></html>
