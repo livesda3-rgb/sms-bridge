@@ -5,8 +5,8 @@
 <meta name="theme-color" content="#f7f8fa"><meta name="apple-mobile-web-app-capable" content="yes">
 <title>SMS Bridge · Beta</title><link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon-192.png">
 <script>try{document.documentElement.dataset.theme=JSON.parse(localStorage.getItem('smsbridge-beta-ui-v1')||'{}').theme||'system'}catch{}</script>
-<link rel="stylesheet" href="./style.css?v=0.8.0-beta.2">
-<script defer src="./core.js"></script><script defer src="./threads.js"></script><script defer src="./app.js?v=0.8.0-beta.2"></script>
+<link rel="stylesheet" href="./style.css?v=0.8.0-beta.3">
+<script defer src="./core.js"></script><script defer src="./threads.js"></script><script defer src="./app.js?v=0.8.0-beta.3"></script>
 </head>
 <body>
 <div class="app">
@@ -26,7 +26,7 @@
   <path d="m16 9-5.5 5.5L8 12" />
 </svg>
 </button>
-  <a class="brand" href="#" aria-label="SMS Bridge — сообщения"><img class="brand-logo" src="./icon-512.png" width="29" height="29" alt=""><span>SMS Bridge<small>BETA</small></span></a>
+  <a class="brand" href="#" aria-label="SMS Bridge — сообщения"><span>SMS Bridge<small>BETA</small></span></a>
   <button id="menu-button" class="circle-button" aria-label="Открыть меню" aria-expanded="false" aria-controls="menu"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
  </header>
  <template id="selection-icon"><svg aria-hidden="true" focusable="false" class="ui-icon"
@@ -122,7 +122,8 @@
 </a>
  </div>
  <main id="main"></main>
- <footer id="selection-bar" hidden><span id="selection-count" aria-live="polite"></span><button id="mark-read">Прочитано</button></footer>
+ <footer id="selection-bar" hidden><span id="selection-count" aria-live="polite"></span><button id="selection-actions" class="circle-button" aria-label="Действия с выбранными переписками" aria-expanded="false" aria-controls="actions-menu"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+<div id="actions-menu" class="menu actions-menu" hidden><button id="action-read">Прочитано</button><button id="action-unread">Не прочитано</button><button id="action-delete" class="danger">Удалить</button></div></footer>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
 </body></html>
