@@ -89,3 +89,26 @@ test('0.8.1 first outside click only dismisses either menu; inside actions and s
   neighbor().click();assert.equal(get('selection-count').textContent,'Выбрано: 2');get('selection-actions').click();get('action-read').click();await until(()=>!get('leading').textContent.includes('Отмена'));assert.equal((await f.db.get('readIds')).includes('neighbor'),true);
  }finally{h.dom.window.close();}
 });
+
+test('0.8.2 direction stays locked; delayed click, hold, cancellation and multi-touch cannot select',async()=>{
+ const f=await fixture(),h=await open(f),{w,get}=h;const realNow=w.Date.now;
+ const row=()=>w.document.querySelector('#threads .thread[aria-label^="Bank, SIM 1"]');
+ function touch(b,type,x=100,y=100,count=1){const e=new w.Event(type,{bubbles:true,cancelable:true});Object.defineProperty(e,'touches',{value:Array.from({length:count},(_,identifier)=>({identifier,clientX:x,clientY:y}))});b.dispatchEvent(e);return e;}
+ try{
+  get('leading').click();let b=row();touch(b,'touchstart');touch(b,'touchmove',103,130);touch(b,'touchmove',210,131);touch(b,'touchend');w.Date.now=()=>realNow()+5000;b.click();assert.equal(get('selection-count').textContent,'Выбрано: 0');assert.equal(b.style.transform,'');w.Date.now=realNow;
+  touch(b,'touchstart');w.Date.now=()=>realNow()+800;touch(b,'touchend');b.click();assert.equal(get('selection-count').textContent,'Выбрано: 0');w.Date.now=realNow;
+  touch(b,'touchstart');touch(b,'touchcancel');b.click();assert.equal(get('selection-count').textContent,'Выбрано: 0');
+  touch(b,'touchstart');touch(b,'touchmove',100,100,2);touch(b,'touchend');b.click();assert.equal(get('selection-count').textContent,'Выбрано: 0');
+  touch(b,'touchstart');b.dispatchEvent(new w.Event('contextmenu',{bubbles:true,cancelable:true}));touch(b,'touchend');b.click();assert.equal(get('selection-count').textContent,'Выбрано: 0');
+  touch(b,'touchstart');touch(b,'touchend');b.click();assert.equal(get('selection-count').textContent,'Выбрано: 1');assert.equal((await f.db.get('readIds')).includes('new'),false);
+ }finally{w.Date.now=realNow;h.dom.window.close();}
+});
+test('0.8.2 both menus share an overlay that consumes touch without reaching a row',async()=>{
+ const f=await fixture(),h=await open(f),{w,get}=h;
+ function dismiss(){const overlay=get('menu-backdrop');assert.equal(overlay.hidden,false);for(const type of ['pointerdown','touchstart','touchend']){const e=new w.Event(type,{bubbles:true,cancelable:true});overlay.dispatchEvent(e);assert.equal(e.defaultPrevented,true);}assert.equal(overlay.hidden,true);}
+ try{
+  get('menu-button').click();assert.equal(get('menu').parentElement,w.document.body);dismiss();assert.equal(w.location.hash,'');assert.equal(get('leading').getAttribute('aria-pressed'),'false');
+  get('leading').click();w.document.querySelector('#threads .thread').click();get('selection-actions').click();assert.equal(get('actions-menu').parentElement,w.document.body);dismiss();assert.equal(get('selection-count').textContent,'Выбрано: 1');assert.equal((await f.db.get('readIds')).includes('new'),false);
+  get('selection-actions').click();get('action-read').click();await until(()=>!get('leading').textContent.includes('Отмена'));
+ }finally{h.dom.window.close();}
+});

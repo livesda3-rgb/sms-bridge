@@ -1,8 +1,8 @@
 'use strict';
 importScripts('./core.js','./db.js','./vault.js');
-const CACHE='sms-bridge-shell-v10';
-const ASSETS=['./','./index.html','./releases/0.8.1/style.css','./releases/0.8.0/app.js','./releases/0.8.1/ui.js','./releases/0.8.1/client.js','./releases/0.8.0/threads.js','./releases/0.8.0/history.js','./qr.js?v=0.7.1','./vendor/qrcode.js?v=0.7.1','./vendor/jsqr.js?v=0.7.1','./core.js?v=0.7.1','./db.js?v=0.7.1','./vault.js?v=0.7.1','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS.map(u=>new Request(u,{cache:'reload'})))).then(async()=>{const c=await caches.open(CACHE);const html=await c.match('./index.html');if(!html||(await html.text()).indexOf('name="sms-bridge-build" content="0.8.1"')<0)throw Error('Incomplete release');await self.skipWaiting();})));
+const CACHE='sms-bridge-shell-v11';
+const ASSETS=['./','./index.html','./releases/0.8.2/style.css','./releases/0.8.0/app.js','./releases/0.8.2/ui.js','./releases/0.8.2/client.js','./releases/0.8.0/threads.js','./releases/0.8.0/history.js','./qr.js?v=0.7.1','./vendor/qrcode.js?v=0.7.1','./vendor/jsqr.js?v=0.7.1','./core.js?v=0.7.1','./db.js?v=0.7.1','./vault.js?v=0.7.1','./releases/0.8.2/icon-192.png','./releases/0.8.2/icon-512.png','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS.map(u=>new Request(u,{cache:'reload'})))).then(async()=>{const c=await caches.open(CACHE);const html=await c.match('./index.html');if(!html||(await html.text()).indexOf('name="sms-bridge-build" content="0.8.2"')<0)throw Error('Incomplete release');await self.skipWaiting();})));
 self.addEventListener('activate',e=>e.waitUntil((async()=>{for(const k of await caches.keys())if(k.startsWith('sms-bridge-shell-')&&k!==CACHE)await caches.delete(k);await self.clients.claim();})()));
 self.addEventListener('message',e=>{if(e.data?.type==='SKIP_WAITING')self.skipWaiting();});
 self.addEventListener('fetch',e=>{
